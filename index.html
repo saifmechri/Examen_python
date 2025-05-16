@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Gestion des Films</title>
+</head>
+<body>
+    <h1>🎬 Liste des Films</h1>
+    <ul id="movieList"></ul>
+
+    <h2>➕ Ajouter un Film</h2>
+    <form id="addMovieForm">
+        <input type="text" id="title" placeholder="Titre" required /><br />
+        <input type="text" id="director" placeholder="Réalisateur" required /><br />
+        <input type="number" id="year" placeholder="Année" required /><br />
+        <button type="submit">Ajouter</button>
+    </form>
+
+    <h2>✏️ Modifier un Film</h2>
+    <form id="editMovieForm" style="display:none;">
+        <input type="hidden" id="editId" />
+        <input type="text" id="editTitle" placeholder="Titre" required /><br />
+        <input type="text" id="editDirector" placeholder="Réalisateur" required /><br />
+        <input type="number" id="editYear" placeholder="Année" required /><br />
+        <button type="submit">Mettre à jour</button>
+        <button type="button" onclick="cancelEdit()">Annuler</button>
+    </form>
+
+    <h2>🔍 Rechercher un Film par ID</h2>
+    <input type="number" id="searchId" placeholder="ID du film" />
+    <button onclick="getMovieById()">Rechercher</button>
+    <div id="singleMovieResult"></div>
+
+<script>
+    const apiUrl = "http://localhost:8000/movies";
+
+    // Afficher la liste des films
+    async function fetchMovies() {
+        const response = await fetch(apiUrl);
+        const movies = await response.json();
+        const list = document.getElementById("movieList");
+        list.innerHTML = "";
+
+        movies.forEach(movie => {
+            const li = document.createElement("li");
+            li.textContent = `${movie.id}: ${movie.title} (${movie.year}) - ${movie.director} `;
+
+            // Bouton Supprimer
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Supprimer";
+            deleteBtn.style.marginLeft = "10px";
+            deleteBtn.onclick = () => deleteMovie(movie.id);
+
+            // Clique sur le texte pour modifier
+            li.style.cursor = "pointer";
+            li.onclick = (e) => {
+                if (e.target !== deleteBtn) { // éviter que click delete déclenche modif
+                    startEditMovie(movie);
+                }
+            };
+
+            li.appendChild(deleteBtn);
+            list.appendChild(li);
+        });
+    }
+
+    // Ajouter un film
+    document.getElementById("addMovieForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const title = document.getElementById("title").value;
+        const director = document.getElementById("director").value;
+        const year = parseInt(document.getElementById("year").value);
+
+        await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, director, year })
+        });
+
+        fetchMovies();
+        e.target.reset();
+    });
+
+    // Supprimer un film
+    async function deleteMovie(id) {
+        if (confirm("Voulez-vous vraiment supprimer ce film ?")) {
+            await fetch(`${apiUrl}/${id}`, {
+                method: "DELETE",
+            });
+            fetchMovies();
+        }
+    }
+
+    // Démarrer la modification d’un film
+    function startEditMovie(movie) {
+        document.getElementById("editMovieForm").style.display = "block";
+        document.getElementById("editId").value = movie.id;
+        document.getElementById("editTitle").value = movie.title;
+        document.getElementById("editDirector").value = movie.director;
+        document.getElementById("editYear").value = movie.year;
+    }
+
+    // Annuler modification
+    function cancelEdit() {
+        document.getElementById("editMovieForm").style.display = "none";
+    }
+
+    // Envoyer la modification au backend
+    document.getElementById("editMovieForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const id = document.getElementById("editId").value;
+        const title = document.getElementById("editTitle").value;
+        const director = document.getElementById("editDirector").value;
+        const year = parseInt(document.getElementById("editYear").value);
+
+        await fetch(`${apiUrl}/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, director, year })
+        });
+
+        fetchMovies();
+        cancelEdit();
+    });
+
+    // Recherche par ID (inchangé)
+    async function getMovieById() {
+        const id = document.getElementById("searchId").value;
+        const response = await fetch(`${apiUrl}/${id}`);
+        const resultDiv = document.getElementById("singleMovieResult");
+
+        if (response.ok) {
+            const movie = await response.json();
+            resultDiv.innerHTML = `<strong>${movie.title}</strong> (${movie.year}) - Réalisé par ${movie.director}`;
+        } else {
+            resultDiv.textContent = "Film non trouvé.";
+        }
+    }
+
+    fetchMovies();
+</script>
+</body>
+</html>
